@@ -13,3 +13,9 @@ npm i
 ```bash
 npm test
 ```
+#### Result
+<img width="998" alt="image" src="https://github.com/nightwatchjs/examples-web-testing/assets/2320747/3ba120d9-505a-44ad-9acd-c71ffb51f4bc">
+
+#### HTML Report
+<img width="1440" alt="image" src="https://github.com/nightwatchjs/examples-web-testing/assets/2320747/91787e00-898a-4a58-9b07-e5d7c06cf289">
+
