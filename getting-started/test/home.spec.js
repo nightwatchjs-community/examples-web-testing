@@ -1,85 +1,120 @@
 describe('Nighwatch homepage', function () {
-  beforeEach(async function (browser) {
-    await browser.window.maximize()
-    await browser.navigateTo('/')
+  beforeEach(function (browser) {
+    browser.window.maximize()
+    browser.navigateTo('/')
   })
   afterEach(browser => browser.end())
 
   it('Should have the correct title', function(browser) {
-    browser.assert.textEquals('h1', 'Introducing Nightwatch v3')
+    browser.element.find('h1').getText().assert.equals('Introducing Nightwatch v3')
   })
 
-  it('Should lead to the installation page on click of Get Started', async function(browser) {
-    await browser.click(browser.element.findByText('Get Started'))
+  it('Should lead to the installation page on click of Get Started', function (browser) {
+    browser.element.findByText('Get Started').click()
+    browser.element.findByPlaceholderText('Filter by title').waitUntil('visible')
+    browser.element.find('h1').getText().assert.equals('Install Nightwatch')
     browser.assert.titleEquals('Getting Started | Developer Guide | Nightwatch.js')
-    browser.assert.equal(await browser.element.find('h1').getText(), 'Install Nightwatch')
-    const $filter_el = await browser.element.findByPlaceholderText('Filter by title')
-    browser.expect(await $filter_el.getAttribute('autocomplete')).to.equal('off')
     browser.assert.urlContains('nightwatchjs.org/guide/quickstarts')
+    browser.element.findByPlaceholderText('Filter by title')
+      .getAttribute('autocomplete').assert.equals('off')
+    ;
   })
 
-  it('Should allow search and show correct results', async function(browser) {
-    await browser.click('#docsearch').waitForElementVisible('.DocSearch-Modal')
-    const $search_input = browser.element.findByPlaceholderText('Search docs')
-    await browser
-      .sendKeys($search_input, 'click ')
-      .pause(50) // Pausing for the JS tick
-      .waitForElementPresent('.DocSearch-Dropdown-Container')
-      .sendKeys($search_input, [browser.Keys.ARROW_DOWN, browser.Keys.ENTER])
-      .assert.textContains('h1', '.rightClick()')
-    ;
+  it('Should allow search and show correct results', function (browser) {
+    browser.element.find('#docsearch').click()
+    browser.element.find('.DocSearch-Modal').waitUntil('visible')
+
+    const search_input = browser.element.findByPlaceholderText('Search docs')
+    search_input.sendKeys('frame')
+    browser.element.find('.DocSearch-Dropdown-Container').assert.present()
+    search_input.sendKeys([browser.Keys.ARROW_DOWN, browser.Keys.ENTER])
+
+    browser.element.find('h1').getText().assert.contains('.frameParent')
   })
 
   it('Should copy the installation command on copy button click', function (browser) {
-    const input_selector = '.DocSearch-Modal .DocSearch-Form input'
-    browser
-      .click(browser.element.findByText('Copy'))
-      .click('#docsearch')
-      .sendKeys(input_selector, [browser.Keys.COMMAND, 'v', browser.Keys.NULL])
-      .assert.attributeMatches(input_selector, 'value', 'npm init nightwatch')
-    ;
+    const is_mac = browser.capabilities.platformName.toLowerCase().includes('mac')
+    browser.element.findByText('Copy').click()
+    browser.element.find('#docsearch').click()
+    const $inputEl = browser.element.find('.DocSearch-Modal .DocSearch-Form input')
+    $inputEl.sendKeys([is_mac ? browser.Keys.COMMAND : browser.Keys.CONTROL, 'v'])
+    $inputEl.getAttribute('value').assert.contains('npm init nightwatch')
   })
 
   it('Should should change with client script', async function (browser) {
     const change_text = "{Client Side Execution}"
-    await browser.executeScript(function (new_text) {
+    browser.executeScript(function (new_text) {
       const $hero_cta = document.querySelector('.hero__action-button--get-started')
       $hero_cta.innerHTML = new_text
       $hero_cta.style.background = '#ff7f2b'
       document.querySelector('header .navigation-list').style.display = 'none'
       document.querySelector('header .navigation__logo').style.width = '900px'
     }, [change_text])
-    await browser.pause(1000) // Pausing just to notice the changes
-    await browser.click(browser.element.findByText(change_text))
+    browser.pause(1000) // Pausing just to notice the changes
+    browser.element.findByText(change_text).click()
     browser.assert.titleMatches('Getting Started')
   })
 
   it('Should allow for substack subscription', function (browser) {
     const iframe_selector = '.footer__wrapper-inner-social-subscribe iframe'
     browser
-      .execute(function (iframe_selector) {
+      .executeScript(function (iframe_selector) {
         document.querySelector(iframe_selector).scrollIntoView()
       }, [iframe_selector])
-      .setAttribute(iframe_selector, 'id', 'test-nightwatch-123')
-      .frame('test-nightwatch-123')
-      .sendKeys('input[type=email]', 'test@nightwatchjs.org')
-      .click('button[type=submit]')
-      .ensure.alertIsPresent()
-      .alerts.accept()
-      .assert.elementPresent(browser.element.findByText('Sign out'))
-    ;
+    browser.element.find(iframe_selector).setAttribute('id', 'iframe-test-nightwatch')
+    browser.frame('iframe-test-nightwatch')
+
+    browser.element.find('input[type=email]').sendKeys('test@nightwatchjs.org')
+    browser.element.find('button[type=submit]').click()
+
+    browser.ensure.alertIsPresent()
+    browser.alerts.accept()
+    browser.element.findByText('Sign out').assert.present()
   })
 
   it('Should lead to the GitHub repo on clicking the Github icon', async function (browser) {
-    await browser.click('ul.navigation-list.social li:nth-child(2) a')
+    browser.element.find('ul.navigation-list.social li:nth-child(2) a').click()
     // wait until window handle for the new window is available
-    await browser.waitUntil(async function () {
-      return (await browser.window.getAllHandles()).length === 2
+    browser.waitUntil(async function () {
+      const windowHandles = await browser.window.getAllHandles()
+      return windowHandles.length === 2
     })
 
     const allWindows = await browser.window.getAllHandles()
-    await browser.window.switchTo(allWindows[1])
+    browser.window.switchTo(allWindows[1])
 
-    await browser.assert.urlContains('github.com/nightwatchjs')
+    browser.assert.urlContains('github.com/nightwatchjs')
+  })
+
+  it('sets and verifies the geolocation to Japan, USA and Denmark', function (browser) {
+    const location_tests = [
+      {
+        location: { latitude: 35.689487, longitude: 139.691706, accuracy: 100 },
+        // Tokyo Metropolitan Government Office, 都庁通り, Nishi - Shinjuku 2 - chome, Shinjuku, 163 - 8001, Japan
+        test_text: 'Japan',
+      },
+      {
+        location: { latitude: 40.730610, longitude: -73.935242, accuracy: 100 },
+        // 38-20 Review Avenue, New York, NY 11101, United States of America
+        test_text: 'New York',
+      },
+      {
+        location: { latitude: 55.676098, longitude: 12.568337, accuracy: 100 },
+        // unnamed road, 1550 København V, Denmark
+        test_text: 'Denmark',
+      }
+    ]
+
+    const waitTillLoad = async function () {
+      const geo_dom_class = await browser.element.find('#geolocation_address')
+        .getAttribute('class').value
+      return !geo_dom_class.includes('text-muted')
+    }
+
+    location_tests.forEach(obj => {
+      browser.setGeolocation(obj.location).navigateTo('https://www.where-am-i.co/')
+      browser.waitUntil(waitTillLoad)
+      browser.element.find('#geolocation_address').getText().assert.contains(obj.test_text)
+    })
   })
 })
